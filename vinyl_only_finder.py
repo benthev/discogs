@@ -76,10 +76,10 @@ class DiscogsVinylFinder:
 
         return username, params
 
-    def get_seller_inventory(self, username):
+    def get_seller_inventory(self, username, start_page=1):
         """Generator that yields inventory items page by page."""
         url = f"{self.base_url}/users/{username}/inventory"
-        params = {"per_page": 100, "page": 1}  # API max is 100
+        params = {"per_page": 100, "page": start_page}  # API max is 100
 
         while True:
             print(f"Fetching page {params['page']}...", file=sys.stderr)
@@ -173,7 +173,7 @@ class DiscogsVinylFinder:
 
         return False
 
-    def filter_vinyl_only(self, url, genre_filter="Electronic"):
+    def filter_vinyl_only(self, url, genre_filter="Electronic", start_page=1):
         """Main function to filter vinyl-only releases."""
         username, params = self.parse_seller_url(url)
 
@@ -186,6 +186,8 @@ class DiscogsVinylFinder:
         if genre_filter:
             print(f"Genre filter: {genre_filter}", file=sys.stderr)
         print(f"Format filter: Vinyl only", file=sys.stderr)
+        if start_page > 1:
+            print(f"Starting from page: {start_page}", file=sys.stderr)
         print()
 
         listing_count = 0
@@ -194,7 +196,7 @@ class DiscogsVinylFinder:
 
         print("\nScanning inventory...\n", file=sys.stderr)
 
-        for listing in self.get_seller_inventory(username):
+        for listing in self.get_seller_inventory(username, start_page=start_page):
             listing_count += 1
             release = listing.get("release", {})
             release_id = release.get("id")
@@ -271,23 +273,26 @@ class DiscogsVinylFinder:
 def main():
     if len(sys.argv) < 2:
         print(
-            "Usage: python vinyl_only_finder.py <discogs_seller_url> [genre]")
+            "Usage: python vinyl_only_finder.py <discogs_seller_url> [start_page] [genre]")
         print("\nExamples:")
         print("  python vinyl_only_finder.py 'https://www.discogs.com/seller/woodstockmusicshop/profile'")
-        print("  python vinyl_only_finder.py 'https://www.discogs.com/seller/woodstockmusicshop/profile' Rock")
-        print("  python vinyl_only_finder.py 'https://www.discogs.com/seller/woodstockmusicshop/profile' ''  # No genre filter")
-        print("\nDefault genre filter: Electronic")
+        print("  python vinyl_only_finder.py 'https://www.discogs.com/seller/woodstockmusicshop/profile' 5  # Start at page 5")
+        print("  python vinyl_only_finder.py 'https://www.discogs.com/seller/woodstockmusicshop/profile' 3 Rock  # Start at page 3, filter Rock")
+        print("  python vinyl_only_finder.py 'https://www.discogs.com/seller/woodstockmusicshop/profile' 1 ''  # No genre filter")
+        print("\nDefault start page: 1")
+        print("Default genre filter: Electronic")
         sys.exit(1)
 
     url = sys.argv[1]
-    genre = sys.argv[2] if len(sys.argv) > 2 else "Electronic"
+    start_page = int(sys.argv[2]) if len(sys.argv) > 2 else 1
+    genre = sys.argv[3] if len(sys.argv) > 3 else "Electronic"
 
     # Empty string means no filter
     if genre == "":
         genre = None
 
     finder = DiscogsVinylFinder()
-    finder.filter_vinyl_only(url, genre_filter=genre)
+    finder.filter_vinyl_only(url, genre_filter=genre, start_page=start_page)
 
 
 if __name__ == "__main__":
