@@ -31,6 +31,36 @@ class DiscogsVinylFinder:
         
         self.session = requests.Session()
         self.session.headers.update(self.headers)
+        self.min_request_delay = 1.0  # Minimum delay between requests in seconds
+        self.last_request_time = 0
+    
+    def _rate_limit(self, delay=None):
+        """Enforce rate limiting between API requests."""
+        if delay is None:
+            delay = self.min_request_delay
+        
+        elapsed = time.time() - self.last_request_time
+        if elapsed < delay:
+            time.sleep(delay - elapsed)
+        self.last_request_time = time.time()
+    
+    def _make_request(self, url, params=None, max_retries=5):
+        """Make an API request with rate limiting and exponential backoff."""
+        for attempt in range(max_retries):
+            self._rate_limit()
+            response = self.session.get(url, params=params)
+            
+            if response.status_code == 200:
+                return response
+            elif response.status_code == 429:
+                # Rate limited - exponential backoff
+                wait_time = (2 ** attempt) * 2  # 2, 4, 8, 16, 32 seconds
+                print(f"Rate limited. Waiting {wait_time}s before retry {attempt + 1}/{max_retries}...", file=sys.stderr)
+                time.sleep(wait_time)
+            else:
+                return response
+        
+        return response
     
     def parse_seller_url(self, url):
         """Extract seller username and filters from URL."""
@@ -52,7 +82,7 @@ class DiscogsVinylFinder:
         
         while True:
             print(f"Fetching page {params['page']}...", file=sys.stderr)
-            response = self.session.get(url, params=params)
+            response = self._make_request(url, params=params)
             
             if response.status_code != 200:
                 print(f"Error: {response.status_code} - {response.text}", file=sys.stderr)
@@ -79,18 +109,17 @@ class DiscogsVinylFinder:
                 break
             
             params["page"] += 1
-            time.sleep(1)  # Be respectful to the API
     
     def get_release_info(self, release_id):
         """Get release details including master_id and genres."""
-        response = self.session.get(f"{self.base_url}/releases/{release_id}")
+        response = self._make_request(f"{self.base_url}/releases/{release_id}")
         if response.status_code == 200:
             return response.json()
         return None
     
     def get_master_info(self, master_id):
         """Get master release info including genres."""
-        response = self.session.get(f"{self.base_url}/masters/{master_id}")
+        response = self._make_request(f"{self.base_url}/masters/{master_id}")
         if response.status_code == 200:
             return response.json()
         return None
@@ -102,7 +131,7 @@ class DiscogsVinylFinder:
         
         all_versions = []
         while True:
-            response = self.session.get(url, params=params)
+            response = self._make_request(url, params=params)
             
             if response.status_code != 200:
                 return []
@@ -123,7 +152,6 @@ class DiscogsVinylFinder:
                 break
             
             params["page"] += 1
-            time.sleep(0.5)
         
         return all_versions
     
@@ -184,7 +212,6 @@ class DiscogsVinylFinder:
             if genre_filter:
                 if master_id:
                     master_info = self.get_master_info(master_id)
-                    time.sleep(0.5)
                     if master_info:
                         genres = [g.lower() for g in master_info.get("genres", [])]
                     else:
@@ -205,7 +232,6 @@ class DiscogsVinylFinder:
                 genres_str = ", ".join(release_info.get("genres", []))
             else:
                 versions = self.get_release_versions(master_id)
-                time.sleep(0.5)
                 
                 if not self.has_digital_version(versions):
                     is_vinyl_only = True
@@ -215,7 +241,6 @@ class DiscogsVinylFinder:
                 
                 # Get genres from master
                 master_info = self.get_master_info(master_id)
-                time.sleep(0.5)
                 genres_str = ", ".join(master_info.get("genres", [])) if master_info else "Unknown"
             
             # Print one-line summary
@@ -224,8 +249,6 @@ class DiscogsVinylFinder:
             
             if is_vinyl_only:
                 vinyl_only_count += 1
-            
-            time.sleep(1)  # Rate limiting
         
         print(f"\n{'='*80}")
         print(f"Total: {listing_count} fetched, {checked_count} matched genre filter, {vinyl_only_count} vinyl-only\n")
