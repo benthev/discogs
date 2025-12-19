@@ -155,14 +155,18 @@ class DiscogsVinylFinder:
         
         return all_versions
     
-    def has_digital_version(self, versions):
-        """Check if any version has a digital or CD format."""
-        digital_formats = ["cd", "mp3", "wav", "flac", "aac", "file", "digital"]
+    def has_non_vinyl_version(self, versions):
+        """Check if any version has a non-vinyl/non-cassette major format."""
+        allowed_formats = ["vinyl", "cassette"]
         
         for version in versions:
-            format_str = version.get("format", "").lower()
-            if any(fmt in format_str for fmt in digital_formats):
-                return True
+            # Check major_formats field which contains format names like "Vinyl", "CD", etc.
+            major_formats = version.get("major_formats", [])
+            
+            # If there are any major formats other than Vinyl or Cassette, it's not vinyl-only
+            for fmt in major_formats:
+                if fmt.lower() not in allowed_formats:
+                    return True
         
         return False
     
@@ -233,11 +237,11 @@ class DiscogsVinylFinder:
             else:
                 versions = self.get_release_versions(master_id)
                 
-                if not self.has_digital_version(versions):
+                if not self.has_non_vinyl_version(versions):
                     is_vinyl_only = True
-                    status = f"✓ VINYL-ONLY ({len(versions)} versions, all vinyl)"
+                    status = f"✓ VINYL-ONLY ({len(versions)} versions, vinyl/cassette only)"
                 else:
-                    status = f"✗ HAS DIGITAL ({len(versions)} versions)"
+                    status = f"✗ HAS NON-VINYL ({len(versions)} versions)"
                 
                 # Get genres from master
                 master_info = self.get_master_info(master_id)
