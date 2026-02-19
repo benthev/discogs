@@ -243,6 +243,7 @@ class DiscogsVinylFinder:
                 is_vinyl_only = True
                 status = "✓ VINYL-ONLY (no master release)"
                 genres_str = ", ".join(release_info.get("genres", []))
+                styles_str = ", ".join(release_info.get("styles", []))
             else:
                 versions = self.get_release_versions(master_id)
 
@@ -252,15 +253,17 @@ class DiscogsVinylFinder:
                 else:
                     status = f"✗ has non-vinyl ({len(versions)} versions)"
 
-                # Get genres from master
+                # Get genres and styles from master
                 master_info = self.get_master_info(master_id)
                 genres_str = ", ".join(master_info.get(
                     "genres", [])) if master_info else "Unknown"
+                styles_str = ", ".join(master_info.get(
+                    "styles", [])) if master_info else "Unknown"
 
             # Print one-line summary
             price_str = f"{price.get('value', '')} {price.get('currency', '')}".strip(
             )
-            print(f"[{checked_count}] {status} | {genres_str} | {artist} - {title} | ${price_str} | https://www.discogs.com/release/{release_id}")
+            print(f"[{checked_count}] {status} | {genres_str} | {styles_str} | {artist} - {title} | ${price_str} | https://www.discogs.com/release/{release_id}")
 
             if is_vinyl_only:
                 vinyl_only_count += 1
