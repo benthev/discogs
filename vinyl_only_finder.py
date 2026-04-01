@@ -283,14 +283,14 @@ def main():
         print("  python vinyl_only_finder.py 'https://www.discogs.com/seller/woodstockmusicshop/profile' 5  # Start at page 5")
         print("  python vinyl_only_finder.py 'https://www.discogs.com/seller/woodstockmusicshop/profile' 3 Rock  # Start at page 3, filter Rock")
         print("  python vinyl_only_finder.py 'https://www.discogs.com/seller/woodstockmusicshop/profile' 1 ''  # No genre filter")
-        print("  python vinyl_only_finder.py 'https://www.discogs.com/seller/woodstockmusicshop/profile' --vinyl-only  # Only show vinyl-only rows")
+        print("  python vinyl_only_finder.py 'https://www.discogs.com/seller/woodstockmusicshop/profile' --show-all  # Show all rows including non-vinyl-only")
         print("\nDefault start page: 1")
         print("Default genre filter: Electronic")
         sys.exit(1)
 
-    # Parse --vinyl-only flag from anywhere in args
-    hide_non_vinyl_only = "--vinyl-only" in sys.argv
-    args = [a for a in sys.argv[1:] if a != "--vinyl-only"]
+    # Parse --show-all flag from anywhere in args (default: only show vinyl-only)
+    show_all = "--show-all" in sys.argv
+    args = [a for a in sys.argv[1:] if a != "--show-all"]
 
     url = args[0]
     start_page = int(args[1]) if len(args) > 1 else 1
@@ -301,7 +301,7 @@ def main():
         genre = None
 
     finder = DiscogsVinylFinder()
-    finder.filter_vinyl_only(url, genre_filter=genre, start_page=start_page, hide_non_vinyl_only=hide_non_vinyl_only)
+    finder.filter_vinyl_only(url, genre_filter=genre, start_page=start_page, hide_non_vinyl_only=not show_all)
 
 
 if __name__ == "__main__":
